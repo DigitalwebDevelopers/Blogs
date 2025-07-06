@@ -1,0 +1,135 @@
+            <h2 class="page_topic">
+              Must-Know String Problems for Beginners ───
+            </h2>
+            <span class="name_credit"
+              ><img
+                src="https://www.youtube.com/favicon.ico"
+                alt="credit"
+                class="credit"
+              />
+              <p>Blog Post By <b>Deepanshu Knox</b></p></span
+            >
+
+            <p class="page_paras" style="padding-top: 15px">
+              Strings are one of the most common topics in programming
+              interviews and coding contests. If you're just starting out,
+              solving these basic string problems can boost your confidence and
+              build a solid foundation.
+            </p>
+
+            <div
+              class="section-separator"
+              style="
+                height: 1px;
+                margin: 18px 0;
+                background: var(--light-gray-color);
+              "
+            ></div>
+
+            <img
+              src="./images/blog2.png"
+              alt="blogimage"
+              style="max-width: 550px; width: 100%; margin: auto"
+            />
+
+            <h3 class="sub_topics" style="padding-top: 10px">
+              🔸 Problem 1: Count Character Frequency
+            </h3>
+            <p class="page_paras" style="padding-block: 5px">
+              Given a string, return an object that shows how many times each
+              letter appears. Ignore punctuation and spaces, and treat uppercase
+              and lowercase as the same.
+            </p>
+
+            <h3 class="sub_topics" style="padding-top: 10px">Example Input:</h3>
+            <pre
+              class="language-javascript"
+            ><code>const input = "Hello, World!";
+</code></pre>
+
+            <h3 class="sub_topics" style="padding-top: 10px">
+              🔸 Your Task to Perform
+            </h3>
+            <p class="page_paras" style="padding-block: 5px">
+              Loop through each character, convert to lowercase, and track
+              frequency using an object.
+            </p>
+
+            <h3 class="sub_topics" style="padding-top: 10px">Sample Code:</h3>
+            <pre class="language-javascript"><code>const freq = {};
+for (let ch of input.toLowerCase()) {
+  if (ch >= 'a' && ch <= 'z') {
+    freq[ch] = (freq[ch] || 0) + 1;
+  }
+}
+console.log(freq);
+</code></pre>
+
+            <h3 class="sub_topics" style="padding-top: 10px">
+              Example Output:
+            </h3>
+            <pre class="language-javascript"><code>{
+  h: 1, e: 1, l: 3,
+  o: 2, w: 1, r: 1,
+  d: 1
+}
+</code></pre>
+
+            <h3 class="sub_topics" style="padding-top: 10px">
+              🔸 Problem 2: Reverse a String
+            </h3>
+            <p class="page_paras" style="padding-block: 5px">
+              Return the reverse of a given string. No built-in reverse
+              functions allowed — try doing it manually.
+            </p>
+
+            <h3 class="sub_topics" style="padding-top: 10px">Sample Code:</h3>
+            <pre class="language-javascript"><code>let str = "openai";
+let reversed = "";
+for (let i = str.length - 1; i >= 0; i--) {
+  reversed += str[i];
+}
+console.log(reversed); // "ianepo"
+</code></pre>
+
+            <h3 class="sub_topics" style="padding-top: 10px">
+              🔸 Problem 3: Check for Palindrome
+            </h3>
+            <p class="page_paras" style="padding-block: 5px">
+              A palindrome reads the same backward. Write a function to check if
+              a string is a palindrome or not.
+            </p>
+
+            <pre class="language-javascript"><code>function isPalindrome(str) {
+  let clean = str.toLowerCase().replace(/[^a-z0-9]/g, "");
+  let reversed = clean.split("").reverse().join("");
+  return clean === reversed;
+}
+
+console.log(isPalindrome("Racecar")); // true
+console.log(isPalindrome("hello"));   // false
+</code></pre>
+
+            <h3 class="sub_topics" style="padding-top: 10px">
+              Bonus Problem: Capitalize First Letter of Each Word
+            </h3>
+            <p class="page_paras" style="padding-block: 5px">
+              Input: "hello world" → Output: "Hello World"
+            </p>
+
+            <pre
+              class="language-javascript"
+            ><code>function capitalizeWords(str) {
+  return str
+    .split(" ")
+    .map(word =&gt; word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+</code></pre>
+
+            <h3 class="sub_topics" style="padding-top: 10px">🔥 Final Words</h3>
+            <p class="page_paras" style="padding-block: 5px">
+              These problems may look simple, but they build the logic you'll
+              reuse again and again. Practice daily, and don't skip explanations
+              — knowing why your code works is just as important as writing it.
+            </p>
