@@ -133,3 +133,218 @@ console.log(isPalindrome("hello"));   // false
               reuse again and again. Practice daily, and don't skip explanations
               — knowing why your code works is just as important as writing it.
             </p>
+
+            <pre
+              class="language-python"
+            ><code>import tkinter as tk
+from tkinter import messagebox
+import sqlite3
+
+# ---------------- DB SETUP ----------------
+conn = sqlite3.connect("bank.db")
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS accounts (
+    acc_no INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    pin TEXT NOT NULL,
+    balance REAL DEFAULT 0.0
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    acc_no INTEGER,
+    type TEXT,
+    amount REAL,
+    FOREIGN KEY(acc_no) REFERENCES accounts(acc_no)
+)
+""")
+
+conn.commit()
+
+# ---------------- MAIN APP ----------------
+class BankApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Bank Management System")
+        self.root.geometry("500x500")
+        self.root.config(bg="#f0f0f0")
+        self.current_user = None
+
+        self.show_home()
+
+    # ---------- HOME ----------
+    def show_home(self):
+        self.clear()
+        print("Showing Home Screen")
+        tk.Label(self.root, text="Welcome to deepanshu Roelx", font=("Arial", 18, "bold"), bg="#f0f0f0").pack(pady=20)
+
+        tk.Button(self.root, text="Create Account", font=("Arial", 14), command=self.create_account).pack(pady=10)
+        tk.Button(self.root, text="Login", font=("Arial", 14), command=self.login).pack(pady=10)
+
+    # ---------- CREATE ACCOUNT ----------
+    def create_account(self):
+        self.clear()
+        print("Navigated to Create Account Page")
+        tk.Label(self.root, text="Create New Account", font=("Arial", 16, "bold"), bg="#f0f0f0").pack(pady=20)
+
+        tk.Label(self.root, text="Full Name:").pack()
+        name_entry = tk.Entry(self.root)
+        name_entry.pack()
+
+        tk.Label(self.root, text="PIN (4 digits):").pack()
+        pin_entry = tk.Entry(self.root, show="*")
+        pin_entry.pack()
+
+        tk.Label(self.root, text="Initial Deposit:").pack()
+        dep_entry = tk.Entry(self.root)
+        dep_entry.pack()
+
+        def save_account():
+            name = name_entry.get()
+            pin = pin_entry.get()
+            dep = dep_entry.get()
+
+            if not (name and pin and dep):
+                messagebox.showwarning("Error", "All fields are required!")
+                return
+
+            cursor.execute("INSERT INTO accounts (name, pin, balance) VALUES (?, ?, ?)", 
+                           (name, pin, float(dep)))
+            conn.commit()
+
+            # Get new Account No
+            cursor.execute("SELECT last_insert_rowid()")
+            acc_no = cursor.fetchone()[0]
+
+            print(f"Account Created → Name: {name}, PIN: {pin}, Deposit: ₹{dep}, Account No: {acc_no}")
+            messagebox.showinfo("Success", f"Account created successfully!\nYour Account No: {acc_no}")
+
+            self.show_home()
+
+        tk.Button(self.root, text="Submit", command=save_account).pack(pady=20)
+        tk.Button(self.root, text="Back", command=self.show_home).pack()
+
+    # ---------- LOGIN ----------
+    def login(self):
+        self.clear()
+        print("Navigated to Login Page")
+        tk.Label(self.root, text="Login", font=("Arial", 16, "bold"), bg="#f0f0f0").pack(pady=20)
+
+        tk.Label(self.root, text="Full Name:").pack()
+        name_entry = tk.Entry(self.root)
+        name_entry.pack()
+
+        tk.Label(self.root, text="PIN:").pack()
+        pin_entry = tk.Entry(self.root, show="*")
+        pin_entry.pack()
+
+        def check_login():
+            name = name_entry.get()
+            pin = pin_entry.get()
+
+            cursor.execute("SELECT * FROM accounts WHERE name=? AND pin=?", (name, pin))
+            user = cursor.fetchone()
+            if user:
+                self.current_user = user
+                print(f"Login Success → Account No: {user[0]}, Name: {user[1]}")
+                self.dashboard()
+            else:
+                print("Login Failed → Invalid Credentials")
+                messagebox.showerror("Error", "Invalid Name or PIN")
+
+        tk.Button(self.root, text="Login", command=check_login).pack(pady=20)
+        tk.Button(self.root, text="Back", command=self.show_home).pack()
+
+    # ---------- DASHBOARD ----------
+    def dashboard(self):
+        self.clear()
+        print(f"Dashboard Loaded for {self.current_user[1]}")
+        tk.Label(self.root, text=f"Welcome, {self.current_user[1]}", font=("Arial", 16, "bold"), bg="#f0f0f0").pack(pady=20)
+
+        tk.Button(self.root, text="Check Balance", width=20, command=self.check_balance).pack(pady=10)
+        tk.Button(self.root, text="Deposit Money", width=20, command=self.deposit).pack(pady=10)
+        tk.Button(self.root, text="Withdraw Money", width=20, command=self.withdraw).pack(pady=10)
+        tk.Button(self.root, text="Transaction History", width=20, command=self.transactions).pack(pady=10)
+        tk.Button(self.root, text="Logout", width=20, command=self.show_home).pack(pady=20)
+
+    # ---------- BALANCE ----------
+    def check_balance(self):
+        cursor.execute("SELECT balance FROM accounts WHERE acc_no=?", (self.current_user[0],))
+        balance = cursor.fetchone()[0]
+        print(f"Balance Checked → Account No: {self.current_user[0]}, Balance: ₹{balance}")
+        messagebox.showinfo("Balance", f"Your Balance: ₹{balance}")
+
+    # ---------- DEPOSIT ----------
+    def deposit(self):
+        def do_deposit():
+            amt = float(dep_entry.get())
+            cursor.execute("UPDATE accounts SET balance = balance + ? WHERE acc_no=?", (amt, self.current_user[0]))
+            cursor.execute("INSERT INTO transactions (acc_no, type, amount) VALUES (?, 'Deposit', ?)", (self.current_user[0], amt))
+            conn.commit()
+            print(f"Deposit Success → ₹{amt} deposited to Account No: {self.current_user[0]}")
+            messagebox.showinfo("Success", f"₹{amt} Deposited!")
+            win.destroy()
+
+        win = tk.Toplevel(self.root)
+        win.title("Deposit")
+        tk.Label(win, text="Enter Amount:").pack(pady=5)
+        dep_entry = tk.Entry(win)
+        dep_entry.pack(pady=5)
+        tk.Button(win, text="Deposit", command=do_deposit).pack(pady=10)
+
+    # ---------- WITHDRAW ----------
+    def withdraw(self):
+        def do_withdraw():
+            amt = float(wd_entry.get())
+            cursor.execute("SELECT balance FROM accounts WHERE acc_no=?", (self.current_user[0],))
+            balance = cursor.fetchone()[0]
+            if amt > balance:
+                print(f"Withdraw Failed → Tried: ₹{amt}, Balance: ₹{balance}")
+                messagebox.showerror("Error", "Insufficient Balance!")
+                return
+            cursor.execute("UPDATE accounts SET balance = balance - ? WHERE acc_no=?", (amt, self.current_user[0]))
+            cursor.execute("INSERT INTO transactions (acc_no, type, amount) VALUES (?, 'Withdraw', ?)", (self.current_user[0], amt))
+            conn.commit()
+            print(f"Withdraw Success → ₹{amt} withdrawn from Account No: {self.current_user[0]}")
+            messagebox.showinfo("Success", f"₹{amt} Withdrawn!")
+            win.destroy()
+
+        win = tk.Toplevel(self.root)
+        win.title("Withdraw")
+        tk.Label(win, text="Enter Amount:").pack(pady=5)
+        wd_entry = tk.Entry(win)
+        wd_entry.pack(pady=5)
+        tk.Button(win, text="Withdraw", command=do_withdraw).pack(pady=10)
+
+    # ---------- TRANSACTIONS ----------
+    def transactions(self):
+        win = tk.Toplevel(self.root)
+        win.title("Transaction History")
+
+        cursor.execute("SELECT type, amount FROM transactions WHERE acc_no=?", (self.current_user[0],))
+        records = cursor.fetchall()
+
+        print(f"Transaction History for Account No: {self.current_user[0]}")
+        if not records:
+            print("No Transactions Found")
+            tk.Label(win, text="No transactions found").pack(pady=20)
+        else:
+            for t in records:
+                print(f"{t[0]}: ₹{t[1]}")
+                tk.Label(win, text=f"{t[0]}: ₹{t[1]}").pack(anchor="w")
+
+    # ---------- CLEAR FRAME ----------
+    def clear(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+
+# ---------------- RUN APP ----------------
+root = tk.Tk()
+app = BankApp(root)
+root.mainloop()
+</code></pre>
