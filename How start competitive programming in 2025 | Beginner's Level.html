@@ -104,3 +104,565 @@
               Finally, don't compare your progress with others. Everyone has
               their own pace. Just keep showing up daily, and results will come.
             </p>
+
+<pre
+              class="language-python"
+            ><code>
+                        import pygame
+import sys
+import random
+import math
+import time
+
+# Initialize pygame
+pygame.init()
+
+# Screen dimensions
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Snake Deluxe")
+
+# Colors
+DARK_GREEN = (0, 100, 0)
+GREEN = (0, 180, 40)
+LIGHT_GREEN = (144, 238, 144)
+RED = (255, 50, 50)
+YELLOW = (255, 215, 0)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GRAY = (50, 50, 50)
+LIGHT_BLUE = (173, 216, 230)
+DARK_BLUE = (0, 0, 139)
+PURPLE = (128, 0, 128)
+
+# Game states
+MENU = 0
+PLAYING = 1
+GAME_OVER = 2
+PAUSED = 3
+
+# Game variables
+cell_size = 20
+grid_width = WIDTH // cell_size
+grid_height = (HEIGHT - 60) // cell_size  # Leave space for score
+score = 0
+high_score = 0
+game_state = MENU
+speed = 10  # Initial speed
+level = 1
+food_count = 0
+
+# Clock for controlling frame rate
+clock = pygame.time.Clock()
+FPS = 60
+
+# Fonts
+font_small = pygame.font.SysFont("Arial", 20)
+font_medium = pygame.font.SysFont("Arial", 36)
+font_large = pygame.font.SysFont("Arial", 72)
+
+# Snake class with smooth movement
+class Snake:
+    def __init__(self):
+        self.reset()
+        
+    def reset(self):
+        self.length = 3
+        self.positions = [(grid_width // 2, grid_height // 2)]
+        self.direction = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
+        self.color = GREEN
+        self.head_color = DARK_GREEN
+        self.grow_to = 3
+        self.last_move = time.time()
+        self.move_delay = 0.1  # Initial move delay (seconds)
+        self.next_direction = self.direction
+        self.is_alive = True
+        
+    def update(self):
+        current_time = time.time()
+        if current_time - self.last_move < self.move_delay or not self.is_alive:
+            return False
+            
+        self.last_move = current_time
+        self.direction = self.next_direction
+        
+        # Calculate new head position
+        head_x, head_y = self.positions[0]
+        new_x = (head_x + self.direction[0]) % grid_width
+        new_y = (head_y + self.direction[1]) % grid_height
+        new_head = (new_x, new_y)
+        
+        # Check for self collision
+        if new_head in self.positions:
+            self.is_alive = False
+            return False
+            
+        # Add new head
+        self.positions.insert(0, new_head)
+        
+        # Remove tail if not growing
+        if len(self.positions) > self.grow_to:
+            self.positions.pop()
+            
+        return True
+        
+    def change_direction(self, new_direction):
+        # Prevent 180-degree turns
+        if (new_direction[0] * -1, new_direction[1] * -1) != self.direction:
+            self.next_direction = new_direction
+            
+    def grow(self):
+        self.grow_to += 1
+        
+    def draw(self):
+        # Draw body segments with gradient color
+        for i, (x, y) in enumerate(self.positions):
+            # Calculate color gradient from head to tail
+            color_factor = i / len(self.positions)
+            segment_color = (
+                int(self.color[0] * (1 - color_factor) + self.head_color[0] * color_factor),
+                int(self.color[1] * (1 - color_factor) + self.head_color[1] * color_factor),
+                int(self.color[2] * (1 - color_factor) + self.head_color[2] * color_factor)
+            )
+            
+            # Draw rounded rectangle for each segment
+            rect = pygame.Rect(x * cell_size, y * cell_size, cell_size, cell_size)
+            pygame.draw.rect(screen, segment_color, rect, border_radius=7)
+            
+            # Draw a slight highlight on top left of each segment
+            highlight_rect = pygame.Rect(x * cell_size + 2, y * cell_size + 2, cell_size - 4, cell_size - 4)
+            pygame.draw.rect(screen, LIGHT_GREEN, highlight_rect, border_radius=5, width=2)
+            
+        # Draw eyes on the head
+        head_x, head_y = self.positions[0]
+        eye_radius = 3
+        
+        # Determine eye positions based on direction
+        if self.direction == (1, 0):  # Right
+            left_eye = (head_x * cell_size + cell_size - 5, head_y * cell_size + 7)
+            right_eye = (head_x * cell_size + cell_size - 5, head_y * cell_size + cell_size - 7)
+        elif self.direction == (-1, 0):  # Left
+            left_eye = (head_x * cell_size + 5, head_y * cell_size + 7)
+            right_eye = (head_x * cell_size + 5, head_y * cell_size + cell_size - 7)
+        elif self.direction == (0, 1):  # Down
+            left_eye = (head_x * cell_size + 7, head_y * cell_size + cell_size - 5)
+            right_eye = (head_x * cell_size + cell_size - 7, head_y * cell_size + cell_size - 5)
+        else:  # Up
+            left_eye = (head_x * cell_size + 7, head_y * cell_size + 5)
+            right_eye = (head_x * cell_size + cell_size - 7, head_y * cell_size + 5)
+            
+        pygame.draw.circle(screen, WHITE, left_eye, eye_radius)
+        pygame.draw.circle(screen, WHITE, right_eye, eye_radius)
+        pygame.draw.circle(screen, BLACK, left_eye, eye_radius - 1)
+        pygame.draw.circle(screen, BLACK, right_eye, eye_radius - 1)
+
+# Food class with different types
+class Food:
+    def __init__(self):
+        self.position = (0, 0)
+        self.color = RED
+        self.type = "normal"
+        self.spawn_time = 0
+        self.lifespan = 0
+        self.spawn()
+        
+    def spawn(self):
+        self.position = (random.randint(0, grid_width - 1), random.randint(0, grid_height - 1))
+        
+        # Randomly choose food type with different probabilities
+        food_type = random.choices(
+            ["normal", "speed", "bonus", "slow"],
+            weights=[70, 10, 15, 5],
+            k=1
+        )[0]
+        
+        self.type = food_type
+        
+        # Set properties based on type
+        if self.type == "normal":
+            self.color = RED
+            self.lifespan = 0  # Permanent
+            self.spawn_time = time.time()
+        elif self.type == "speed":
+            self.color = YELLOW
+            self.lifespan = 8  # Seconds
+            self.spawn_time = time.time()
+        elif self.type == "bonus":
+            self.color = PURPLE
+            self.lifespan = 5  # Seconds
+            self.spawn_time = time.time()
+        elif self.type == "slow":
+            self.color = LIGHT_BLUE
+            self.lifespan = 6  # Seconds
+            self.spawn_time = time.time()
+            
+    def should_remove(self):
+        if self.lifespan > 0 and time.time() - self.spawn_time > self.lifespan:
+            return True
+        return False
+        
+    def draw(self):
+        x, y = self.position
+        center = (x * cell_size + cell_size // 2, y * cell_size + cell_size // 2)
+        
+        # Draw different food types with different shapes
+        if self.type == "normal":
+            # Apple shape
+            pygame.draw.circle(screen, self.color, center, cell_size // 2 - 2)
+            # Stem
+            pygame.draw.line(screen, DARK_GREEN, 
+                            (center[0], center[1] - cell_size // 3),
+                            (center[0] + 3, center[1] - cell_size // 2), 2)
+            # Highlight
+            pygame.draw.circle(screen, (255, 150, 150), 
+                              (center[0] - cell_size // 4, center[1] - cell_size // 4), 
+                              cell_size // 6)
+                              
+        elif self.type == "speed":
+            # Lightning bolt
+            points = [
+                (center[0] - cell_size // 3, center[1] - cell_size // 2),
+                (center[0] + cell_size // 6, center[1] - cell_size // 4),
+                (center[0] - cell_size // 6, center[1]),
+                (center[0] + cell_size // 3, center[1] + cell_size // 2),
+                (center[0] - cell_size // 6, center[1] + cell_size // 4),
+                (center[0] + cell_size // 6, center[1]),
+            ]
+            pygame.draw.polygon(screen, self.color, points)
+            
+        elif self.type == "bonus":
+            # Star shape
+            points = []
+            for i in range(5):
+                # Outer points
+                angle = math.pi/2 + i * 2*math.pi/5
+                points.append((center[0] + cell_size//2 * math.cos(angle),
+                              center[1] - cell_size//2 * math.sin(angle)))
+                # Inner points
+                angle += math.pi/5
+                points.append((center[0] + cell_size//4 * math.cos(angle),
+                              center[1] - cell_size//4 * math.sin(angle)))
+            pygame.draw.polygon(screen, self.color, points)
+            
+        elif self.type == "slow":
+            # Snowflake shape
+            pygame.draw.circle(screen, self.color, center, cell_size // 3)
+            for angle in range(0, 360, 45):
+                end_x = center[0] + cell_size//2 * math.cos(math.radians(angle))
+                end_y = center[1] + cell_size//2 * math.sin(math.radians(angle))
+                pygame.draw.line(screen, self.color, center, (end_x, end_y), 2)
+                
+        # Draw pulsating effect for temporary food
+        if self.lifespan > 0:
+            time_left = self.lifespan - (time.time() - self.spawn_time)
+            if time_left < 2:  # Blink when about to expire
+                if int(time_left * 5) % 2 == 0:  # Flash twice per second
+                    pygame.draw.circle(screen, WHITE, center, cell_size // 2, 2)
+
+# Button class for menus
+class Button:
+    def __init__(self, x, y, width, height, text, color, hover_color):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.color = color
+        self.hover_color = hover_color
+        self.is_hovered = False
+        
+    def draw(self):
+        color = self.hover_color if self.is_hovered else self.color
+        pygame.draw.rect(screen, color, self.rect, border_radius=10)
+        pygame.draw.rect(screen, BLACK, self.rect, 3, border_radius=10)
+        
+        text_surface = font_medium.render(self.text, True, WHITE)
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        screen.blit(text_surface, text_rect)
+        
+    def check_hover(self, pos):
+        self.is_hovered = self.rect.collidepoint(pos)
+        return self.is_hovered
+        
+    def check_click(self, pos, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            return self.rect.collidepoint(pos)
+        return False
+
+# Draw grid background
+def draw_grid():
+    for x in range(0, WIDTH, cell_size):
+        pygame.draw.line(screen, (40, 40, 40), (x, 0), (x, HEIGHT - 60), 1)
+    for y in range(0, HEIGHT - 60, cell_size):
+        pygame.draw.line(screen, (40, 40, 40), (0, y), (WIDTH, y), 1)
+
+# Draw score panel
+def draw_score_panel():
+    pygame.draw.rect(screen, GRAY, (0, HEIGHT - 60, WIDTH, 60))
+    pygame.draw.line(screen, WHITE, (0, HEIGHT - 60), (WIDTH, HEIGHT - 60), 2)
+    
+    score_text = font_medium.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (20, HEIGHT - 45))
+    
+    high_score_text = font_medium.render(f"High Score: {high_score}", True, YELLOW)
+    screen.blit(high_score_text, (WIDTH - high_score_text.get_width() - 20, HEIGHT - 45))
+    
+    level_text = font_medium.render(f"Level: {level}", True, LIGHT_BLUE)
+    screen.blit(level_text, (WIDTH // 2 - level_text.get_width() // 2, HEIGHT - 45))
+    
+    # Draw food type legend
+    pygame.draw.circle(screen, RED, (WIDTH // 2 - 150, HEIGHT - 30), 8)
+    pygame.draw.circle(screen, YELLOW, (WIDTH // 2 - 100, HEIGHT - 30), 8)
+    pygame.draw.circle(screen, PURPLE, (WIDTH // 2 - 50, HEIGHT - 30), 8)
+    pygame.draw.circle(screen, LIGHT_BLUE, (WIDTH // 2, HEIGHT - 30), 8)
+    
+    legend_text = font_small.render("Normal  Speed  Bonus  Slow", True, WHITE)
+    screen.blit(legend_text, (WIDTH // 2 + 20, HEIGHT - 35))
+
+# Draw menu screen
+def draw_menu():
+    # Draw background with grid
+    screen.fill((20, 20, 20))
+    draw_grid()
+    
+    # Draw title
+    title_text = font_large.render("Snake Deluxe", True, GREEN)
+    screen.blit(title_text, (WIDTH//2 - title_text.get_width()//2, 100))
+    
+    # Draw subtitle
+    subtitle_text = font_medium.render("Use arrow keys to navigate", True, YELLOW)
+    screen.blit(subtitle_text, (WIDTH//2 - subtitle_text.get_width()//2, 180))
+    
+    # Draw buttons
+    play_button.draw()
+    
+    # Draw high score
+    if high_score > 0:
+        score_text = font_medium.render(f"High Score: {high_score}", True, WHITE)
+        screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, HEIGHT - 150))
+    
+    # Draw animated snake on menu
+    for i in range(10):
+        x = WIDTH // 2 - 100 + i * 20
+        y = 300
+        color_factor = i / 10
+        segment_color = (
+            int(GREEN[0] * (1 - color_factor) + DARK_GREEN[0] * color_factor),
+            int(GREEN[1] * (1 - color_factor) + DARK_GREEN[1] * color_factor),
+            int(GREEN[2] * (1 - color_factor) + DARK_GREEN[2] * color_factor)
+        )
+        rect = pygame.Rect(x, y, cell_size, cell_size)
+        pygame.draw.rect(screen, segment_color, rect, border_radius=7)
+        
+    # Draw food items on menu
+    food_types = [RED, YELLOW, PURPLE, LIGHT_BLUE]
+    for i, color in enumerate(food_types):
+        center = (WIDTH // 2 - 50 + i * 40, 350)
+        pygame.draw.circle(screen, color, center, 10)
+
+# Draw game over screen
+def draw_game_over():
+    # Semi-transparent overlay
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 150))
+    screen.blit(overlay, (0, 0))
+    
+    # Draw game over text
+    game_over_text = font_large.render("Game Over", True, RED)
+    screen.blit(game_over_text, (WIDTH//2 - game_over_text.get_width()//2, 150))
+    
+    # Draw score
+    score_text = font_medium.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, 250))
+    
+    # Draw high score
+    high_score_text = font_medium.render(f"High Score: {high_score}", True, YELLOW)
+    screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, 300))
+    
+    # Draw buttons
+    restart_button.draw()
+    menu_button.draw()
+
+# Draw paused screen
+def draw_paused():
+    # Semi-transparent overlay
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 150))
+    screen.blit(overlay, (0, 0))
+    
+    # Draw paused text
+    paused_text = font_large.render("Paused", True, WHITE)
+    screen.blit(paused_text, (WIDTH//2 - paused_text.get_width()//2, 150))
+    
+    # Draw buttons
+    resume_button.draw()
+    menu_button.draw()
+
+# Create game objects
+snake = Snake()
+food = Food()
+
+# Create buttons
+play_button = Button(WIDTH//2 - 100, HEIGHT//2, 200, 50, "Play", GREEN, DARK_GREEN)
+restart_button = Button(WIDTH//2 - 100, HEIGHT//2 + 60, 200, 50, "Restart", GREEN, DARK_GREEN)
+menu_button = Button(WIDTH//2 - 100, HEIGHT//2 + 120, 200, 50, "Menu", (100, 100, 240), (80, 80, 220))
+resume_button = Button(WIDTH//2 - 100, HEIGHT//2 - 60, 200, 50, "Resume", GREEN, DARK_GREEN)
+
+# Main game loop
+running = True
+while running:
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+            
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                if game_state == PLAYING:
+                    game_state = PAUSED
+                elif game_state == PAUSED:
+                    game_state = PLAYING
+                    
+            if game_state == PLAYING:
+                if event.key == pygame.K_UP:
+                    snake.change_direction((0, -1))
+                elif event.key == pygame.K_DOWN:
+                    snake.change_direction((0, 1))
+                elif event.key == pygame.K_LEFT:
+                    snake.change_direction((-1, 0))
+                elif event.key == pygame.K_RIGHT:
+                    snake.change_direction((1, 0))
+                    
+            if event.key == pygame.K_RETURN and game_state == MENU:
+                game_state = PLAYING
+                score = 0
+                level = 1
+                food_count = 0
+                snake.reset()
+                food.spawn()
+                
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # Check for button clicks
+            mouse_pos = pygame.mouse.get_pos()
+            
+            if game_state == MENU:
+                if play_button.check_click(mouse_pos, event):
+                    game_state = PLAYING
+                    score = 0
+                    level = 1
+                    food_count = 0
+                    snake.reset()
+                    food.spawn()
+                    
+            elif game_state == GAME_OVER:
+                if restart_button.check_click(mouse_pos, event):
+                    game_state = PLAYING
+                    score = 0
+                    level = 1
+                    food_count = 0
+                    snake.reset()
+                    food.spawn()
+                elif menu_button.check_click(mouse_pos, event):
+                    game_state = MENU
+                    
+            elif game_state == PAUSED:
+                if resume_button.check_click(mouse_pos, event):
+                    game_state = PLAYING
+                elif menu_button.check_click(mouse_pos, event):
+                    game_state = MENU
+    
+    # Get mouse position for button hover effects
+    mouse_pos = pygame.mouse.get_pos()
+    if game_state == MENU:
+        play_button.check_hover(mouse_pos)
+    elif game_state == GAME_OVER:
+        restart_button.check_hover(mouse_pos)
+        menu_button.check_hover(mouse_pos)
+    elif game_state == PAUSED:
+        resume_button.check_hover(mouse_pos)
+        menu_button.check_hover(mouse_pos)
+    
+    # Draw background
+    screen.fill((20, 20, 20))
+    draw_grid()
+    
+    if game_state == MENU:
+        # Draw menu
+        draw_menu()
+        
+    elif game_state == PLAYING:
+        # Update snake
+        if snake.update():
+            # Check for food collision
+            if snake.positions[0] == food.position:
+                # Handle different food types
+                if food.type == "normal":
+                    score += 10
+                    snake.grow()
+                elif food.type == "speed":
+                    score += 15
+                    snake.grow()
+                    snake.move_delay = max(0.05, snake.move_delay * 0.9)  # Increase speed
+                elif food.type == "bonus":
+                    score += 30
+                    snake.grow()
+                    snake.grow()  # Extra growth
+                elif food.type == "slow":
+                    score += 20
+                    snake.grow()
+                    snake.move_delay = min(0.2, snake.move_delay * 1.1)  # Decrease speed
+                    
+                food.spawn()
+                food_count += 1
+                
+                # Level up every 5 foods
+                if food_count % 5 == 0:
+                    level += 1
+                    snake.move_delay = max(0.05, snake.move_delay * 0.95)  # Gradually increase speed
+                    
+            # Check if food should be removed (for temporary food)
+            if food.should_remove():
+                food.spawn()
+                
+        # Draw food
+        food.draw()
+        
+        # Draw snake
+        snake.draw()
+        
+        # Draw score panel
+        draw_score_panel()
+        
+        # Check for game over
+        if not snake.is_alive:
+            game_state = GAME_OVER
+            if score > high_score:
+                high_score = score
+        
+    elif game_state == GAME_OVER:
+        # Draw game elements
+        food.draw()
+        snake.draw()
+        draw_score_panel()
+        
+        # Draw game over screen
+        draw_game_over()
+        
+    elif game_state == PAUSED:
+        # Draw game elements
+        food.draw()
+        snake.draw()
+        draw_score_panel()
+        
+        # Draw paused screen
+        draw_paused()
+    
+    # Update display
+    pygame.display.flip()
+    
+    # Control frame rate
+    clock.tick(FPS)
+
+# Quit pygame
+pygame.quit()
+sys.exit()
+
+            </code>
+</pre>
